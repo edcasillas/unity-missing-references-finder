@@ -1,0 +1,16 @@
+{
+    "name": "com.ecasillas.missingrefsfinder",
+    "version": "1.0.0",
+    "displayName": "Missing References Finder",
+    "description": "A tool to find missing references in Unity",
+    "unity": "2018.3",
+   "keywords": [
+      "Missing",
+      "References"
+    ],
+    "author": {
+      "name": "Ed Casillas",
+      "email": "ed@exagames-studio.com",
+      "url": "https://edu.itch.io"
+    }
+  }
