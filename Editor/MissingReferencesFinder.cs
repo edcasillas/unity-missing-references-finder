@@ -22,7 +22,7 @@ public class MissingReferencesFinder : MonoBehaviour {
     public static void MissingSpritesInAssets() {
         var allAssetPaths = AssetDatabase.GetAllAssetPaths();
         var objs = allAssetPaths
-                   .Where(path => !path.StartsWith("/"))
+                   .Where(isProjectAsset)
                    .Select(a => AssetDatabase.LoadAssetAtPath(a, typeof(GameObject)) as GameObject)
                    .Where(a => a != null)
                    .ToArray();
@@ -30,18 +30,42 @@ public class MissingReferencesFinder : MonoBehaviour {
         FindMissingReferences("Project", objs);
     }
 
+    private static bool isProjectAsset(string path) {
+#if UNITY_EDITOR_OSX
+        return !path.StartsWith("/");
+#else
+        return path.Substring(1, 2) == ":\\";
+#endif
+    }
+
     private static void FindMissingReferences(string context, GameObject[] objects) {
-        foreach (var go in objects) {
+        var wasCancelled = false;
+        for (var i = 0; i < objects.Length; i++) {
+            if (wasCancelled || EditorUtility.DisplayCancelableProgressBar("Missing References Finder",
+                                                           "Looking for missing references",
+                                                           i / (float) objects.Length)) {
+                wasCancelled = true;
+                break;
+            }
+            var go         = objects[i];
             var components = go.GetComponents<Component>();
 
-            foreach (var c in components) {
+            for (var j = 0; j < components.Length; j++) {
+                var c = components[j];
                 if (!c) {
                     Debug.LogError("Missing Component in GO: " + FullPath(go), go);
                     continue;
                 }
 
+                if (wasCancelled || EditorUtility.DisplayCancelableProgressBar("Missing References Finder",
+                                                               "Looking for missing references",
+                                                               (i / (float)objects.Length) + ((i / (float)objects.Length) / (float)components.Length) * j)) {
+                    wasCancelled = true;
+                    break;
+                }
+
                 var so = new SerializedObject(c);
-                var              sp = so.GetIterator();
+                var sp = so.GetIterator();
 
                 while (sp.NextVisible(true)) {
                     if (sp.propertyType == SerializedPropertyType.ObjectReference) {
@@ -54,7 +78,12 @@ public class MissingReferencesFinder : MonoBehaviour {
             }
         }
 
-        Debug.Log("Finished finding missing references.");
+        EditorUtility.ClearProgressBar();
+        EditorUtility.DisplayDialog("Missing References Finder",
+                                    wasCancelled ?
+                                        "Process cancelled. Current results are shown as errors in the console." :
+                                        "Finished finding missing references. Results are shown as errors in the console.",
+                                    "Ok");
     }
 
     private static GameObject[] GetSceneObjects() {
@@ -70,5 +99,8 @@ public class MissingReferencesFinder : MonoBehaviour {
         Debug.LogError(string.Format(err, FullPath(go), c, property, context), go);
     }
 
-    private static string FullPath(GameObject go) => go.transform.parent == null ? go.name : FullPath(go.transform.parent.gameObject) + "/" + go.name;
+    private static string FullPath(GameObject go) {
+        var parent = go.transform.parent; 
+        return parent == null ? go.name : FullPath(parent.gameObject) + "/" + go.name;
+    }
 }
