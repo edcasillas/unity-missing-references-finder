@@ -6,13 +6,16 @@ using UnityEngine;
 public class MissingReferencesFinder : MonoBehaviour {
     [MenuItem("Tools/Find Missing References/In scene", false, 50)]
     public static void FindMissingReferencesInCurrentScene() {
+        EditorUtility.DisplayProgressBar("Missing References Finder", "Discovering scene objects", 0f);
         var objects = GetSceneObjects();
         FindMissingReferences(EditorSceneManager.GetActiveScene().path, objects);
     }
 
     [MenuItem("Tools/Find Missing References/In all scenes", false, 51)]
     public static void MissingSpritesInAllScenes() {
+        // TODO Need to adjust the progress bar progress for this case.
         foreach (var scene in EditorBuildSettings.scenes.Where(s => s.enabled)) {
+            EditorUtility.DisplayProgressBar("Missing References Finder", $"Discovering objects in scene {scene.path}", 0f);
             EditorSceneManager.OpenScene(scene.path);
             FindMissingReferences(scene.path, GetSceneObjects());
         }
@@ -20,6 +23,7 @@ public class MissingReferencesFinder : MonoBehaviour {
 
     [MenuItem("Tools/Find Missing References/In assets", false, 52)]
     public static void MissingSpritesInAssets() {
+        EditorUtility.DisplayProgressBar("Missing References Finder", "Preparing search in all assets.", 0f);
         var allAssetPaths = AssetDatabase.GetAllAssetPaths();
         var objs = allAssetPaths
                    .Where(isProjectAsset)
@@ -57,12 +61,12 @@ public class MissingReferencesFinder : MonoBehaviour {
                     continue;
                 }
 
-                if (wasCancelled || EditorUtility.DisplayCancelableProgressBar("Missing References Finder",
+                /*if (wasCancelled || EditorUtility.DisplayCancelableProgressBar("Missing References Finder",
                                                                "Looking for missing references",
                                                                (i / (float)objects.Length) + ((i / (float)objects.Length) / (float)components.Length) * j)) {
                     wasCancelled = true;
                     break;
-                }
+                }*/
 
                 var so = new SerializedObject(c);
                 var sp = so.GetIterator();
