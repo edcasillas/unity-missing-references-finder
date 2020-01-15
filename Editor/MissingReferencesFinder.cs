@@ -6,10 +6,11 @@ using UnityEngine;
 public class MissingReferencesFinder : MonoBehaviour {
     [MenuItem("Tools/Find Missing References/In scene", false, 50)]
     public static void FindMissingReferencesInCurrentScene() {
-        EditorUtility.DisplayProgressBar("Missing References Finder", "Discovering scene objects", 0f);
+        var scene = EditorSceneManager.GetActiveScene().path;
+        showInitialProgressBar(scene);
         var objects = GetSceneObjects();
-        var finished =FindMissingReferences(EditorSceneManager.GetActiveScene().path, objects);
-        showDialog(!finished);
+        var finished =FindMissingReferences(scene, objects);
+        showFinishDialog(!finished);
     }
 
     [MenuItem("Tools/Find Missing References/In all scenes", false, 51)]
@@ -18,17 +19,18 @@ public class MissingReferencesFinder : MonoBehaviour {
 
         var finished = true;
         foreach (var scene in EditorBuildSettings.scenes.Where(s => s.enabled)) {
-            EditorUtility.DisplayProgressBar("Missing References Finder", $"Discovering objects in scene {scene.path}", 0f);
+            EditorUtility.DisplayProgressBar("Missing References Finder", $"Opening {scene.path}", 0f);
             EditorSceneManager.OpenScene(scene.path);
+            showInitialProgressBar(scene.path, false);
             finished = FindMissingReferences(scene.path, GetSceneObjects());
             if (!finished) break;
         }
-        showDialog(!finished);
+        showFinishDialog(!finished);
     }
 
     [MenuItem("Tools/Find Missing References/In assets", false, 52)]
     public static void MissingSpritesInAssets() {
-        EditorUtility.DisplayProgressBar("Missing References Finder", "Preparing search in all assets.", 0f);
+        showInitialProgressBar("all assets");
         var allAssetPaths = AssetDatabase.GetAllAssetPaths();
         var objs = allAssetPaths
                    .Where(isProjectAsset)
@@ -37,7 +39,7 @@ public class MissingReferencesFinder : MonoBehaviour {
                    .ToArray();
 
         var finished = FindMissingReferences("Project", objs);
-        showDialog(!finished);
+        showFinishDialog(!finished);
     }
 
     private static bool isProjectAsset(string path) {
@@ -52,7 +54,7 @@ public class MissingReferencesFinder : MonoBehaviour {
         var wasCancelled = false;
         for (var i = 0; i < objects.Length; i++) {
             if (wasCancelled || EditorUtility.DisplayCancelableProgressBar("Missing References Finder",
-                                                                           "Looking for missing references",
+                                                                           $"Looking for missing references in {context}. Inspecting {objects[i].name}",
                                                                            i / (float) objects.Length)) {
                 return false;
             }
@@ -91,7 +93,15 @@ public class MissingReferencesFinder : MonoBehaviour {
         return true;
     }
 
-    private static void showDialog(bool wasCancelled) {
+    private static void showInitialProgressBar(string searchContext, bool clearConsole = true) {
+        if (clearConsole) {
+            Debug.ClearDeveloperConsole();
+            Debug.Log($"Console has been cleared by the Missing References Finder.");   
+        }
+        EditorUtility.DisplayProgressBar("Missing References Finder", $"Preparing search in {searchContext}", 0f);
+    }
+    
+    private static void showFinishDialog(bool wasCancelled) {
         EditorUtility.ClearProgressBar();
         EditorUtility.DisplayDialog("Missing References Finder",
                                     wasCancelled ?
