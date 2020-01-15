@@ -8,17 +8,22 @@ public class MissingReferencesFinder : MonoBehaviour {
     public static void FindMissingReferencesInCurrentScene() {
         EditorUtility.DisplayProgressBar("Missing References Finder", "Discovering scene objects", 0f);
         var objects = GetSceneObjects();
-        FindMissingReferences(EditorSceneManager.GetActiveScene().path, objects);
+        var finished =FindMissingReferences(EditorSceneManager.GetActiveScene().path, objects);
+        showDialog(!finished);
     }
 
     [MenuItem("Tools/Find Missing References/In all scenes", false, 51)]
     public static void MissingSpritesInAllScenes() {
         // TODO Need to adjust the progress bar progress for this case.
+
+        var finished = true;
         foreach (var scene in EditorBuildSettings.scenes.Where(s => s.enabled)) {
             EditorUtility.DisplayProgressBar("Missing References Finder", $"Discovering objects in scene {scene.path}", 0f);
             EditorSceneManager.OpenScene(scene.path);
-            FindMissingReferences(scene.path, GetSceneObjects());
+            finished = FindMissingReferences(scene.path, GetSceneObjects());
+            if (!finished) break;
         }
+        showDialog(!finished);
     }
 
     [MenuItem("Tools/Find Missing References/In assets", false, 52)]
@@ -31,7 +36,8 @@ public class MissingReferencesFinder : MonoBehaviour {
                    .Where(a => a != null)
                    .ToArray();
 
-        FindMissingReferences("Project", objs);
+        var finished = FindMissingReferences("Project", objs);
+        showDialog(!finished);
     }
 
     private static bool isProjectAsset(string path) {
@@ -42,15 +48,15 @@ public class MissingReferencesFinder : MonoBehaviour {
 #endif
     }
 
-    private static void FindMissingReferences(string context, GameObject[] objects) {
+    private static bool FindMissingReferences(string context, GameObject[] objects) {
         var wasCancelled = false;
         for (var i = 0; i < objects.Length; i++) {
             if (wasCancelled || EditorUtility.DisplayCancelableProgressBar("Missing References Finder",
-                                                           "Looking for missing references",
-                                                           i / (float) objects.Length)) {
-                wasCancelled = true;
-                break;
+                                                                           "Looking for missing references",
+                                                                           i / (float) objects.Length)) {
+                return false;
             }
+
             var go         = objects[i];
             var components = go.GetComponents<Component>();
 
@@ -82,6 +88,10 @@ public class MissingReferencesFinder : MonoBehaviour {
             }
         }
 
+        return true;
+    }
+
+    private static void showDialog(bool wasCancelled) {
         EditorUtility.ClearProgressBar();
         EditorUtility.DisplayDialog("Missing References Finder",
                                     wasCancelled ?
