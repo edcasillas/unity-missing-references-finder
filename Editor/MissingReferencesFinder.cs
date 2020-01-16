@@ -2,14 +2,17 @@
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class MissingReferencesFinder : MonoBehaviour {
     [MenuItem("Tools/Find Missing References/In scene", false, 50)]
     public static void FindMissingReferencesInCurrentScene() {
-        var scene = EditorSceneManager.GetActiveScene().path;
-        showInitialProgressBar(scene);
-        var objects = GetSceneObjects();
-        var finished =FindMissingReferences(scene, objects);
+        var scene = SceneManager.GetActiveScene();
+        showInitialProgressBar(scene.path);
+        
+        var rootObjects = scene.GetRootGameObjects();
+        
+        var finished = FindMissingReferences(scene.path, rootObjects, true);
         showFinishDialog(!finished);
     }
 
@@ -48,7 +51,7 @@ public class MissingReferencesFinder : MonoBehaviour {
 #endif
     }
 
-    private static bool FindMissingReferences(string context, GameObject[] objects) {
+    private static bool FindMissingReferences(string context, GameObject[] objects, bool findInChildren = false) {
         var wasCancelled = false;
         for (var i = 0; i < objects.Length; i++) {
             if (wasCancelled || EditorUtility.DisplayCancelableProgressBar("Missing References Finder",
@@ -57,7 +60,7 @@ public class MissingReferencesFinder : MonoBehaviour {
                 return false;
             }
 
-            findMissingReferences(context, objects[i]);
+            findMissingReferences(context, objects[i], findInChildren);
         }
 
         return true;
@@ -81,9 +84,10 @@ public class MissingReferencesFinder : MonoBehaviour {
         return true;
     }
 
-    private static void findMissingReferences(string context, GameObject go) {
+    private static void findMissingReferences(string context, GameObject go, bool findInChildren = false) {
         var components = go.GetComponents<Component>();
 
+        Debug.Log(go.name);
         for (var j = 0; j < components.Length; j++) {
             var c = components[j];
             if (!c) {
@@ -108,6 +112,12 @@ public class MissingReferencesFinder : MonoBehaviour {
                         ShowError(context, go, c.GetType().Name, ObjectNames.NicifyVariableName(sp.name));
                     }
                 }
+            }
+        }
+
+        if (findInChildren) {
+            foreach (Transform child in go.transform) {
+                findMissingReferences(context, child.gameObject, true);
             }
         }
     }
