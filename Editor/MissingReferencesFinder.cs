@@ -14,7 +14,7 @@ public class MissingReferencesFinder : MonoBehaviour {
     }
 
     [MenuItem("Tools/Find Missing References/In all scenes", false, 51)]
-    public static void MissingSpritesInAllScenes() {
+    public static void FindMissingReferencesInAllScenes() {
         // TODO Need to adjust the progress bar progress for this case.
 
         var finished = true;
@@ -29,13 +29,13 @@ public class MissingReferencesFinder : MonoBehaviour {
     }
 
     [MenuItem("Tools/Find Missing References/In assets", false, 52)]
-    public static void MissingSpritesInAssets() {
+    public static void FindMissingReferencesInAssets() {
         showInitialProgressBar("all assets");
         var allAssetPaths = AssetDatabase.GetAllAssetPaths();
         var objs = allAssetPaths
                    .Where(isProjectAsset)
-                   .Select(a => AssetDatabase.LoadAssetAtPath(a, typeof(GameObject)) as GameObject)
-                   .Where(a => a != null)
+                   //.Select(a => AssetDatabase.LoadAssetAtPath(a, typeof(GameObject)) as GameObject)
+                  // .Where(a => a != null)
                    .ToArray();
 
         var finished = FindMissingReferences("Project", objs);
@@ -59,38 +59,59 @@ public class MissingReferencesFinder : MonoBehaviour {
                 return false;
             }
 
-            var go         = objects[i];
-            var components = go.GetComponents<Component>();
+            findMissingReferences(context, objects[i]);
+        }
 
-            for (var j = 0; j < components.Length; j++) {
-                var c = components[j];
-                if (!c) {
-                    Debug.LogError("Missing Component in GO: " + FullPath(go), go);
-                    continue;
-                }
+        return true;
+    }
+    
+    private static bool FindMissingReferences(string context, string[] paths) {
+        var wasCancelled = false;
+        for (var i = 0; i < paths.Length; i++) {
+            var obj = AssetDatabase.LoadAssetAtPath(paths[i], typeof(GameObject)) as GameObject;
+            if (obj == null || !obj) continue;
+            
+            if (wasCancelled || EditorUtility.DisplayCancelableProgressBar("Missing References Finder",
+                                                                           $"Looking for missing references in {context}. Inspecting {paths[i]}",
+                                                                           i / (float) paths.Length)) {
+                return false;
+            }
 
-                /*if (wasCancelled || EditorUtility.DisplayCancelableProgressBar("Missing References Finder",
+            findMissingReferences(context, obj);
+        }
+
+        return true;
+    }
+
+    private static void findMissingReferences(string context, GameObject go) {
+        var components = go.GetComponents<Component>();
+
+        for (var j = 0; j < components.Length; j++) {
+            var c = components[j];
+            if (!c) {
+                Debug.LogError("Missing Component in GO: " + FullPath(go), go);
+                continue;
+            }
+
+            /*if (wasCancelled || EditorUtility.DisplayCancelableProgressBar("Missing References Finder",
                                                                "Looking for missing references",
                                                                (i / (float)objects.Length) + ((i / (float)objects.Length) / (float)components.Length) * j)) {
                     wasCancelled = true;
                     break;
                 }*/
 
-                var so = new SerializedObject(c);
-                var sp = so.GetIterator();
+            var so = new SerializedObject(c);
+            var sp = so.GetIterator();
 
-                while (sp.NextVisible(true)) {
-                    if (sp.propertyType == SerializedPropertyType.ObjectReference) {
-                        if (sp.objectReferenceValue           == null
-                         && sp.objectReferenceInstanceIDValue != 0) {
-                            ShowError(context, go, c.GetType().Name, ObjectNames.NicifyVariableName(sp.name));
-                        }
+            while (sp.NextVisible(true)) {
+                if (sp.propertyType == SerializedPropertyType.ObjectReference) {
+                    if (sp.objectReferenceValue           == null
+                     && sp.objectReferenceInstanceIDValue != 0) {
+                        ShowError(context, go, c.GetType().Name, ObjectNames.NicifyVariableName(sp.name));
                     }
                 }
             }
         }
-
-        return true;
     }
 
     private static void showInitialProgressBar(string searchContext, bool clearConsole = true) {
