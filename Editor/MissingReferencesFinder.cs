@@ -40,7 +40,7 @@ public class MissingReferencesFinder : MonoBehaviour {
         showFinishDialog(!finished);
     }
     
-    [MenuItem("Tools/Find Missing References/In all scenes in project", false, 51)]
+    [MenuItem("Tools/Find Missing References/In all scenes in project", false, 52)]
     public static void FindMissingReferencesInAllScenes() {
         var scenes = EditorBuildSettings.scenes;
         
@@ -53,7 +53,7 @@ public class MissingReferencesFinder : MonoBehaviour {
         showFinishDialog(!finished);
     }
 
-    [MenuItem("Tools/Find Missing References/In assets", false, 52)]
+    [MenuItem("Tools/Find Missing References/In assets", false, 53)]
     public static void FindMissingReferencesInAssets() {
         showInitialProgressBar("all assets");
         var allAssetPaths = AssetDatabase.GetAllAssetPaths();
@@ -65,7 +65,7 @@ public class MissingReferencesFinder : MonoBehaviour {
         showFinishDialog(!finished);
     }
     
-    [MenuItem("Tools/Find Missing References/Everywhere", false, 51)]
+    [MenuItem("Tools/Find Missing References/Everywhere", false, 54)]
     public static void FindMissingReferencesEverywhere() {
         var scenes = EditorBuildSettings.scenes;
         var progressWeight = 1 / (float)(scenes.Length + 1);
