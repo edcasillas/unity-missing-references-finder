@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -23,8 +22,8 @@ public class MissingReferencesFinder : MonoBehaviour {
         foreach (var rootObject in rootObjects) {
             queue.Enqueue(new ObjectData{ExpectedProgress = 1/(float)rootObjects.Length, GameObject = rootObject});
         }
-        
-        var finished = findMissingReferences(scene.path, queue, true);
+
+        var finished = findMissingReferencesInScene(scene, 1);
         showFinishDialog(!finished);
     }
 
@@ -32,12 +31,12 @@ public class MissingReferencesFinder : MonoBehaviour {
     public static void FindMissingReferencesInAllScenes() {
         // TODO Need to adjust the progress bar progress for this case.
 
+        var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).ToList();
+        
         var finished = true;
-        foreach (var scene in EditorBuildSettings.scenes.Where(s => s.enabled)) {
-            EditorUtility.DisplayProgressBar("Missing References Finder", $"Opening {scene.path}", 0f);
-            EditorSceneManager.OpenScene(scene.path);
-            showInitialProgressBar(scene.path, false);
-            finished = FindMissingReferences(scene.path, GetSceneObjects());
+        foreach (var scene in scenes) {
+            var s = EditorSceneManager.OpenScene(scene.path);
+            finished = findMissingReferencesInScene(s, 1/(float)scenes.Count());
             if (!finished) break;
         }
         showFinishDialog(!finished);
@@ -175,6 +174,17 @@ public class MissingReferencesFinder : MonoBehaviour {
         }
 
         return true;
+    }
+
+    private static bool findMissingReferencesInScene(Scene scene, float progressWeightByScene) {
+        var rootObjects = scene.GetRootGameObjects();
+        
+        var queue = new Queue<ObjectData>();
+        foreach (var rootObject in rootObjects) {
+            queue.Enqueue(new ObjectData{ExpectedProgress = progressWeightByScene /(float)rootObjects.Length, GameObject = rootObject});
+        }
+        
+        return findMissingReferences(scene.path, queue, true);
     }
     
     private static bool findMissingReferences(string context, Queue<ObjectData> queue, bool findInChildren = false) {
