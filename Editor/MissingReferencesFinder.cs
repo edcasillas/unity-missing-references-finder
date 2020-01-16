@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -204,14 +205,15 @@ public class MissingReferencesFinder : MonoBehaviour {
                     continue;
                 }
 
-                var so = new SerializedObject(c);
-                var sp = so.GetIterator();
-
-                while (sp.NextVisible(true)) {
-                    if (sp.propertyType == SerializedPropertyType.ObjectReference) {
-                        if (sp.objectReferenceValue           == null
-                         && sp.objectReferenceInstanceIDValue != 0) {
-                            ShowError(context, go, c.GetType().Name, ObjectNames.NicifyVariableName(sp.name));
+                using (var so = new SerializedObject(c)) {
+                    using (var sp = so.GetIterator()) {
+                        while (sp.NextVisible(true)) {
+                            if (sp.propertyType == SerializedPropertyType.ObjectReference) {
+                                if (sp.objectReferenceValue           == null
+                                 && sp.objectReferenceInstanceIDValue != 0) {
+                                    ShowError(context, go, c.GetType().Name, ObjectNames.NicifyVariableName(sp.name));
+                                }
+                            }
                         }
                     }
                 }
@@ -222,7 +224,7 @@ public class MissingReferencesFinder : MonoBehaviour {
                     if (child.gameObject == go) continue;
                     queue.Enqueue(new ObjectData{ExpectedProgress = progressEachComponent, GameObject = child.gameObject});
                 }
-            }   
+            }
         }
 
         return true;
