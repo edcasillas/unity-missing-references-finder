@@ -53,19 +53,18 @@ public class MissingReferencesFinder : MonoBehaviour {
 
     private static bool FindMissingReferences(string context, GameObject[] objects, bool findInChildren = false) {
         var wasCancelled = false;
+
+        var progressPerObject = 1 / (float) objects.Length;
+        
         for (var i = 0; i < objects.Length; i++) {
-            if (wasCancelled || EditorUtility.DisplayCancelableProgressBar("Missing References Finder",
-                                                                           $"Looking for missing references in {context}. Inspecting {objects[i].name}",
-                                                                           i / (float) objects.Length)) {
+            if (!findMissingReferences(context, objects[i], progressPerObject * i, progressPerObject, findInChildren)) {
                 return false;
             }
-
-            findMissingReferences(context, objects[i], findInChildren);
         }
 
         return true;
     }
-    
+
     private static bool FindMissingReferences(string context, string[] paths) {
         var wasCancelled = false;
         for (var i = 0; i < paths.Length; i++) {
@@ -87,20 +86,12 @@ public class MissingReferencesFinder : MonoBehaviour {
     private static void findMissingReferences(string context, GameObject go, bool findInChildren = false) {
         var components = go.GetComponents<Component>();
 
-        Debug.Log(go.name);
         for (var j = 0; j < components.Length; j++) {
             var c = components[j];
             if (!c) {
                 Debug.LogError("Missing Component in GO: " + FullPath(go), go);
                 continue;
             }
-
-            /*if (wasCancelled || EditorUtility.DisplayCancelableProgressBar("Missing References Finder",
-                                                               "Looking for missing references",
-                                                               (i / (float)objects.Length) + ((i / (float)objects.Length) / (float)components.Length) * j)) {
-                    wasCancelled = true;
-                    break;
-                }*/
 
             var so = new SerializedObject(c);
             var sp = so.GetIterator();
@@ -121,11 +112,63 @@ public class MissingReferencesFinder : MonoBehaviour {
             }
         }
     }
+    
+    private static bool findMissingReferences(string context, GameObject go, float initialProgress, float progressThisObject, bool findInChildren = false) {
+        var components = go.GetComponents<Component>();
+        
+        float progressEachComponent;
+        if (findInChildren) {
+            progressEachComponent = (progressThisObject) / (float)(components.Length + go.transform.childCount);
+        } else {
+            progressEachComponent = progressThisObject / (float)components.Length;   
+        }
+
+        var currentProgress = initialProgress;
+        for (var j = 0; j < components.Length; j++) {
+            currentProgress += (progressEachComponent * j);
+            if (EditorUtility.DisplayCancelableProgressBar($"Searching missing references in {context}",
+                                                           go.name,
+                                                           currentProgress)) {
+                return false;
+            }
+            
+            var c = components[j];
+            if (!c) {
+                Debug.LogError("Missing Component in GO: " + FullPath(go), go);
+                continue;
+            }
+
+            var so = new SerializedObject(c);
+            var sp = so.GetIterator();
+
+            while (sp.NextVisible(true)) {
+                if (sp.propertyType == SerializedPropertyType.ObjectReference) {
+                    if (sp.objectReferenceValue           == null
+                     && sp.objectReferenceInstanceIDValue != 0) {
+                        ShowError(context, go, c.GetType().Name, ObjectNames.NicifyVariableName(sp.name));
+                    }
+                }
+            }
+        }
+
+        if (findInChildren) {
+            foreach (Transform child in go.transform) {
+                if (child == go.transform) continue;
+                if (!findMissingReferences(context, child.gameObject, currentProgress, progressEachComponent, true)) {
+                    return false;
+                }
+
+                currentProgress += progressEachComponent;
+            }
+        }
+
+        return true;
+    }
 
     private static void showInitialProgressBar(string searchContext, bool clearConsole = true) {
         if (clearConsole) {
             Debug.ClearDeveloperConsole();
-            Debug.Log($"Console has been cleared by the Missing References Finder.");   
+            //Debug.Log($"Console has been cleared by the Missing References Finder.");   
         }
         EditorUtility.DisplayProgressBar("Missing References Finder", $"Preparing search in {searchContext}", 0f);
     }
