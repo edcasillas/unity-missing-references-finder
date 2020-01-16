@@ -46,7 +46,8 @@ public class MissingReferencesFinder : MonoBehaviour {
 #if UNITY_EDITOR_OSX
         return !path.StartsWith("/");
 #else
-        return path.Substring(1, 2) == ":\\";
+        //return path.Substring(1, 2) == ":\\";
+        return true;
 #endif
     }
 
