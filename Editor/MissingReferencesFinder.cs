@@ -34,8 +34,6 @@ public class MissingReferencesFinder : MonoBehaviour {
         var allAssetPaths = AssetDatabase.GetAllAssetPaths();
         var objs = allAssetPaths
                    .Where(isProjectAsset)
-                   //.Select(a => AssetDatabase.LoadAssetAtPath(a, typeof(GameObject)) as GameObject)
-                  // .Where(a => a != null)
                    .ToArray();
 
         var finished = FindMissingReferences("Project", objs);
@@ -46,7 +44,7 @@ public class MissingReferencesFinder : MonoBehaviour {
 #if UNITY_EDITOR_OSX
         return !path.StartsWith("/");
 #else
-        return path.Substring(1, 2) != ":\\";
+        return path.Substring(1, 2) != ":/";
 #endif
     }
 
