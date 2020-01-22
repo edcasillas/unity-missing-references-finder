@@ -1,6 +1,6 @@
 {
     "name": "com.ecasillas.missingrefsfinder",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "displayName": "Missing References Finder",
     "description": "A tool to find missing references in Unity",
     "unity": "2018.3",
