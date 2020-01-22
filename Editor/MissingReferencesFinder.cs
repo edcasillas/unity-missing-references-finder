@@ -71,9 +71,11 @@ public class MissingReferencesFinder : MonoBehaviour {
         var progressWeight = 1 / (float)(scenes.Length + 1);
         
         var finished = true;
+        var currentProgress = 0f;
         foreach (var scene in scenes) {
             var s = EditorSceneManager.OpenScene(scene.path);
-            finished = findMissingReferencesInScene(s, progressWeight);
+            finished = findMissingReferencesInScene(s, progressWeight, currentProgress);
+            currentProgress += progressWeight;
             if (!finished) break;
         }
 
@@ -83,7 +85,7 @@ public class MissingReferencesFinder : MonoBehaviour {
                        .Where(isProjectAsset)
                        .ToArray();
 
-            finished = findMissingReferences("Project", objs, 1 / (float)(scenes.Length), progressWeight);
+            finished = findMissingReferences("Project", objs, currentProgress, progressWeight);
         }
         
         showFinishDialog(!finished);
@@ -145,7 +147,7 @@ public class MissingReferencesFinder : MonoBehaviour {
         }
     }
 
-    private static bool findMissingReferencesInScene(Scene scene, float progressWeightByScene) {
+    private static bool findMissingReferencesInScene(Scene scene, float progressWeightByScene, float currentProgress = 0f) {
         var rootObjects = scene.GetRootGameObjects();
         
         var queue = new Queue<ObjectData>();
@@ -153,11 +155,10 @@ public class MissingReferencesFinder : MonoBehaviour {
             queue.Enqueue(new ObjectData{ExpectedProgress = progressWeightByScene /(float)rootObjects.Length, GameObject = rootObject});
         }
         
-        return findMissingReferences(scene.path, queue, true);
+        return findMissingReferences(scene.path, queue, true, currentProgress);
     }
     
-    private static bool findMissingReferences(string context, Queue<ObjectData> queue, bool findInChildren = false) {
-        var currentProgress = 0f;
+    private static bool findMissingReferences(string context, Queue<ObjectData> queue, bool findInChildren = false, float currentProgress = 0f) {
         while (queue.Any()) {
             var data = queue.Dequeue();
             var go = data.GameObject;
