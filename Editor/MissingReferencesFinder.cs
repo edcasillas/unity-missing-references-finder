@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -102,7 +103,14 @@ public class MissingReferencesFinder : MonoBehaviour {
     private static bool findMissingReferences(string context, string[] paths, float initialProgress = 0f, float progressWeight = 1f) {
         var wasCancelled = false;
         for (var i = 0; i < paths.Length; i++) {
-            var obj = AssetDatabase.LoadAssetAtPath(paths[i], typeof(GameObject)) as GameObject;
+            GameObject obj = null;
+
+            try {
+                obj = AssetDatabase.LoadAssetAtPath(paths[i], typeof(GameObject)) as GameObject;
+            } catch (Exception ex) {
+                Debug.LogWarning($"An exception occurred while trying to load asset at path {paths[i]}: {ex.Message}");
+            }
+            
             if (obj == null || !obj) continue;
             
             if (wasCancelled || EditorUtility.DisplayCancelableProgressBar("Searching missing references in assets.",
