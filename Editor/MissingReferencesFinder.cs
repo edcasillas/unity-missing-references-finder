@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -23,24 +24,26 @@ public class MissingReferencesFinder : MonoBehaviour {
             queue.Enqueue(new ObjectData{ExpectedProgress = 1/(float)rootObjects.Length, GameObject = rootObject});
         }
 
-        var finished = findMissingReferencesInScene(scene, 1);
-        showFinishDialog(!finished);
+        var wasCancelled = false;
+        var count = findMissingReferencesInScene(scene, 1, () => { wasCancelled = false; }, () => { wasCancelled = true; });
+        showFinishDialog(wasCancelled, count);
     }
 
     [MenuItem("Tools/Find Missing References/In all scenes in build", false, 51)]
     public static void FindMissingReferencesInAllScenesInBuild() {
         var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).ToList();
-        
-        var finished = true;
+
+        var count = 0;
+        var wasCancelled = true;
         foreach (var scene in scenes) {
             var s = EditorSceneManager.OpenScene(scene.path);
-            finished = findMissingReferencesInScene(s, 1/(float)scenes.Count());
-            if (!finished) break;
+            count += findMissingReferencesInScene(s, 1/(float)scenes.Count(), () => { wasCancelled = false; }, () => { wasCancelled = true; });
+            if (wasCancelled) break;
         }
-        showFinishDialog(!finished);
+        showFinishDialog(wasCancelled, count);
     }
     
-    [MenuItem("Tools/Find Missing References/In all scenes in project", false, 52)]
+    /*[MenuItem("Tools/Find Missing References/In all scenes in project", false, 52)]
     public static void FindMissingReferencesInAllScenes() {
         var scenes = EditorBuildSettings.scenes;
         
@@ -51,7 +54,7 @@ public class MissingReferencesFinder : MonoBehaviour {
             if (!finished) break;
         }
         showFinishDialog(!finished);
-    }
+    }*/
 
     [MenuItem("Tools/Find Missing References/In assets", false, 53)]
     public static void FindMissingReferencesInAssets() {
@@ -61,34 +64,36 @@ public class MissingReferencesFinder : MonoBehaviour {
                    .Where(isProjectAsset)
                    .ToArray();
 
-        var finished = findMissingReferences("Project", objs);
-        showFinishDialog(!finished);
+        var wasCancelled = false;
+        var count = findMissingReferences("Project", objs, () => { wasCancelled = false; }, () => { wasCancelled = true; });
+        showFinishDialog(wasCancelled, count);
     }
     
     [MenuItem("Tools/Find Missing References/Everywhere", false, 54)]
     public static void FindMissingReferencesEverywhere() {
         var scenes = EditorBuildSettings.scenes;
         var progressWeight = 1 / (float)(scenes.Length + 1);
-        
-        var finished = true;
+
+        var count = 0;
+        var wasCancelled = true;
         var currentProgress = 0f;
         foreach (var scene in scenes) {
             var s = EditorSceneManager.OpenScene(scene.path);
-            finished = findMissingReferencesInScene(s, progressWeight, currentProgress);
+            count += findMissingReferencesInScene(s, progressWeight, () => { wasCancelled = false; }, () => { wasCancelled = true; }, currentProgress);
             currentProgress += progressWeight;
-            if (!finished) break;
+            if (wasCancelled) break;
         }
 
-        if (finished) {
+        if (!wasCancelled) {
             var allAssetPaths = AssetDatabase.GetAllAssetPaths();
             var objs = allAssetPaths
                        .Where(isProjectAsset)
                        .ToArray();
 
-            finished = findMissingReferences("Project", objs, currentProgress, progressWeight);
+            count += findMissingReferences("Project", objs, () => { wasCancelled = false; }, () => { wasCancelled = true; }, currentProgress, progressWeight);
         }
         
-        showFinishDialog(!finished);
+        showFinishDialog(wasCancelled, count);
     }
 
     private static bool isProjectAsset(string path) {
@@ -99,7 +104,8 @@ public class MissingReferencesFinder : MonoBehaviour {
 #endif
     }
 
-    private static bool findMissingReferences(string context, string[] paths, float initialProgress = 0f, float progressWeight = 1f) {
+    private static int findMissingReferences(string context, string[] paths, Action onFinished, Action onCanceled, float initialProgress = 0f, float progressWeight = 1f) {
+        var count = 0;
         var wasCancelled = false;
         for (var i = 0; i < paths.Length; i++) {
             var obj = AssetDatabase.LoadAssetAtPath(paths[i], typeof(GameObject)) as GameObject;
@@ -108,22 +114,26 @@ public class MissingReferencesFinder : MonoBehaviour {
             if (wasCancelled || EditorUtility.DisplayCancelableProgressBar("Searching missing references in assets.",
                                                                            $"{paths[i]}",
                                                                            initialProgress + ((i / (float) paths.Length)*progressWeight))) {
-                return false;
+                onCanceled.Invoke();
+                return count;
             }
 
-            findMissingReferences(context, obj);
+            count = findMissingReferences(context, obj);
         }
 
-        return true;
+        onFinished.Invoke();
+        return count;
     }
 
-    private static void findMissingReferences(string context, GameObject go, bool findInChildren = false) {
+    private static int findMissingReferences(string context, GameObject go, bool findInChildren = false) {
+        var count = 0;
         var components = go.GetComponents<Component>();
 
         for (var j = 0; j < components.Length; j++) {
             var c = components[j];
             if (!c) {
                 Debug.LogError("Missing Component in GO: " + FullPath(go), go);
+                count++;
                 continue;
             }
 
@@ -135,6 +145,7 @@ public class MissingReferencesFinder : MonoBehaviour {
                     if (sp.objectReferenceValue           == null
                      && sp.objectReferenceInstanceIDValue != 0) {
                         ShowError(context, go, c.GetType().Name, ObjectNames.NicifyVariableName(sp.name));
+                        count++;
                     }
                 }
             }
@@ -142,12 +153,14 @@ public class MissingReferencesFinder : MonoBehaviour {
 
         if (findInChildren) {
             foreach (Transform child in go.transform) {
-                findMissingReferences(context, child.gameObject, true);
+               count += findMissingReferences(context, child.gameObject, true);
             }
         }
+
+        return count;
     }
 
-    private static bool findMissingReferencesInScene(Scene scene, float progressWeightByScene, float currentProgress = 0f) {
+    private static int findMissingReferencesInScene(Scene scene, float progressWeightByScene, Action onFinished, Action onCanceled, float currentProgress = 0f) {
         var rootObjects = scene.GetRootGameObjects();
         
         var queue = new Queue<ObjectData>();
@@ -155,10 +168,15 @@ public class MissingReferencesFinder : MonoBehaviour {
             queue.Enqueue(new ObjectData{ExpectedProgress = progressWeightByScene /(float)rootObjects.Length, GameObject = rootObject});
         }
         
-        return findMissingReferences(scene.path, queue, true, currentProgress);
+        var count = findMissingReferences(scene.path, queue,
+                                          onFinished,
+                                          onCanceled,
+                                          true, currentProgress);
+        return count;
     }
     
-    private static bool findMissingReferences(string context, Queue<ObjectData> queue, bool findInChildren = false, float currentProgress = 0f) {
+    private static int findMissingReferences(string context, Queue<ObjectData> queue, Action onFinished, Action onCanceled, bool findInChildren = false, float currentProgress = 0f) {
+        var count = 0;
         while (queue.Any()) {
             var data = queue.Dequeue();
             var go = data.GameObject;
@@ -176,12 +194,14 @@ public class MissingReferencesFinder : MonoBehaviour {
                 if (EditorUtility.DisplayCancelableProgressBar($"Searching missing references in {context}",
                                                                go.name,
                                                                currentProgress)) {
-                    return false;
+                    onCanceled.Invoke();
+                    return count;
                 }
             
                 var c = components[j];
                 if (!c) {
                     Debug.LogError("Missing Component in GO: " + FullPath(go), go);
+                    count++;
                     continue;
                 }
 
@@ -192,6 +212,7 @@ public class MissingReferencesFinder : MonoBehaviour {
                                 if (sp.objectReferenceValue           == null
                                  && sp.objectReferenceInstanceIDValue != 0) {
                                     ShowError(context, go, c.GetType().Name, ObjectNames.NicifyVariableName(sp.name));
+                                    count++;
                                 }
                             }
                         }
@@ -207,7 +228,8 @@ public class MissingReferencesFinder : MonoBehaviour {
             }
         }
 
-        return true;
+        onFinished.Invoke();
+        return count;
     }
 
     private static void showInitialProgressBar(string searchContext, bool clearConsole = true) {
@@ -217,12 +239,12 @@ public class MissingReferencesFinder : MonoBehaviour {
         EditorUtility.DisplayProgressBar("Missing References Finder", $"Preparing search in {searchContext}", 0f);
     }
     
-    private static void showFinishDialog(bool wasCancelled) {
+    private static void showFinishDialog(bool wasCancelled, int count) {
         EditorUtility.ClearProgressBar();
         EditorUtility.DisplayDialog("Missing References Finder",
                                     wasCancelled ?
-                                        "Process cancelled. Current results are shown as errors in the console." :
-                                        "Finished finding missing references. Results are shown as errors in the console.",
+                                        $"Process cancelled.\n{count} missing references were found.\n Current results are shown as errors in the console." :
+                                        $"Finished finding missing references.\n{count} missing references were found.\n Results are shown as errors in the console.",
                                     "Ok");
     }
 
