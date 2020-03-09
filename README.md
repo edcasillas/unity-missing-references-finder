@@ -33,3 +33,5 @@ Open the Tools menu and select "Find Missing References", then select the contex
 
 Click on one of these options and wait for the process to finish. Missing references will be shown as errors in the console and you can click on them to jump to the corresponding game object.
 
+## Known Issues ##
+- The count of missing references shown in the dialog at the end of the process is sometimes incorrect. This doesn't affect the results shown in the console.

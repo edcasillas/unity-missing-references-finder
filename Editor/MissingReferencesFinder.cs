@@ -36,8 +36,15 @@ public class MissingReferencesFinder : MonoBehaviour {
         var count = 0;
         var wasCancelled = true;
         foreach (var scene in scenes) {
-            var s = EditorSceneManager.OpenScene(scene.path);
-            count += findMissingReferencesInScene(s, 1/(float)scenes.Count(), () => { wasCancelled = false; }, () => { wasCancelled = true; });
+            Scene openScene;
+            try {
+                openScene = EditorSceneManager.OpenScene(scene.path);
+            } catch (Exception ex) {
+                Debug.LogError($"Could not open scene at path \"{scene.path}\". This scene was added to the build, and it's possible that it has been deleted: Error: {ex.Message}");
+                continue;
+            }
+
+            count += findMissingReferencesInScene(openScene, 1/(float)scenes.Count(), () => { wasCancelled = false; }, () => { wasCancelled = true; });
             if (wasCancelled) break;
         }
         showFinishDialog(wasCancelled, count);
@@ -78,8 +85,14 @@ public class MissingReferencesFinder : MonoBehaviour {
         var wasCancelled = true;
         var currentProgress = 0f;
         foreach (var scene in scenes) {
-            var s = EditorSceneManager.OpenScene(scene.path);
-            count += findMissingReferencesInScene(s, progressWeight, () => { wasCancelled = false; }, () => { wasCancelled = true; }, currentProgress);
+            Scene openScene;
+            try {
+                openScene = EditorSceneManager.OpenScene(scene.path);
+            } catch (Exception ex) {
+                Debug.LogError($"Could not open scene at path \"{scene.path}\". This scene was added to the build, and it's possible that it has been deleted: Error: {ex.Message}");
+                continue;
+            }
+            count += findMissingReferencesInScene(openScene, progressWeight, () => { wasCancelled = false; }, () => { wasCancelled = true; }, currentProgress);
             currentProgress += progressWeight;
             if (wasCancelled) break;
         }
@@ -132,7 +145,7 @@ public class MissingReferencesFinder : MonoBehaviour {
         for (var j = 0; j < components.Length; j++) {
             var c = components[j];
             if (!c) {
-                Debug.LogError("Missing Component in GO: " + FullPath(go), go);
+                Debug.LogError($"Missing Component in GameObject: {FullPath(go)}", go);
                 count++;
                 continue;
             }
@@ -200,7 +213,7 @@ public class MissingReferencesFinder : MonoBehaviour {
             
                 var c = components[j];
                 if (!c) {
-                    Debug.LogError("Missing Component in GO: " + FullPath(go), go);
+                    Debug.LogError($"Missing Component in GameObject: \"{FullPath(go)}\"", go);
                     count++;
                     continue;
                 }
