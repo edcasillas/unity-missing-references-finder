@@ -27,9 +27,10 @@ To ensure you have the latest version of the package, remove the version lock th
 ## Use ##
 
 Open the Tools menu and select "Find Missing References", then select the context in which you want to search:
-- The current scene
-- All assets
-- All scenes
+- The current scene.
+- All scenes added to the build settings.
+- All assets.
+- Everywhere (all scenes added to the build settings + all assets).
 
 Click on one of these options and wait for the process to finish. Missing references will be shown as errors in the console and you can click on them to jump to the corresponding game object.
 
