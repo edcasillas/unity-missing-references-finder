@@ -158,7 +158,7 @@ public class MissingReferencesFinder : MonoBehaviour {
         for (var j = 0; j < components.Length; j++) {
             var c = components[j];
             if (!c) {
-                Debug.LogError($"Missing Component in GameObject: {FullPath(go)}", go);
+                Debug.LogError($"Missing Component in GameObject: {FullPath(go)} in {context}", go);
                 count++;
                 continue;
             }
@@ -226,7 +226,7 @@ public class MissingReferencesFinder : MonoBehaviour {
 
                 var c = components[j];
                 if (!c) {
-                    Debug.LogError($"Missing Component in GameObject: \"{FullPath(go)}\"", go);
+                    Debug.LogError($"Missing Component in GameObject: \"{FullPath(go)}\" in \"{context}\"", go);
                     count++;
                     continue;
                 }
