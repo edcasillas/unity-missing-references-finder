@@ -33,9 +33,15 @@ public class MissingReferencesFinder : MonoBehaviour {
 	[MenuItem("Tools/Find Missing References/In current prefab", false, 51)]
 	public static void FindMissingReferencesInCurrentPrefab() {
 		var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
-		showInitialProgressBar(prefabStage.prefabAssetPath);
+        
+#if UNITY_2020_1_OR_NEWER
+        var assetPath = prefabStage.assetPath;
+#else
+        var assetPath = prefabStage.prefabAssetPath;
+#endif
+        showInitialProgressBar(assetPath);
 
-		var count = findMissingReferences(prefabStage.prefabAssetPath, prefabStage.prefabContentsRoot, true);
+		var count = findMissingReferences(assetPath, prefabStage.prefabContentsRoot, true);
 		showFinishDialog(false, count);
 	}
 
