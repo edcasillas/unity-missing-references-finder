@@ -18,13 +18,15 @@ public class MissingReferencesFinder : MonoBehaviour {
         var scene = SceneManager.GetActiveScene();
         showInitialProgressBar(scene.path);
 
-        var rootObjects = scene.GetRootGameObjects();
+        //var rootObjects = scene.GetRootGameObjects();
 
         /*var queue = new Queue<ObjectData>();
         foreach (var rootObject in rootObjects) {
             queue.Enqueue(new ObjectData{ExpectedProgress = 1/(float)rootObjects.Length, GameObject = rootObject});
         }*/
 
+        clearConsole();
+        
         var wasCancelled = false;
         var count = findMissingReferencesInScene(scene, 1, () => { wasCancelled = false; }, () => { wasCancelled = true; });
         showFinishDialog(wasCancelled, count);
@@ -289,5 +291,16 @@ public class MissingReferencesFinder : MonoBehaviour {
     private static string FullPath(GameObject go) {
         var parent = go.transform.parent;
         return parent == null ? go.name : FullPath(parent.gameObject) + "/" + go.name;
+    }
+
+    private static void clearConsole() {
+        var logEntries = Type.GetType("UnityEditor.LogEntries, UnityEditor.dll");
+        if(logEntries == null) return;
+
+        var clearMethod = logEntries.GetMethod("Clear",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+        if(clearMethod == null) return;
+
+        clearMethod.Invoke(null, null);
     }
 }
