@@ -93,6 +93,9 @@ public class MissingReferencesFinder : MonoBehaviour {
 
     [MenuItem("Tools/Find Missing References/Everywhere", false, 53)]
     public static void FindMissingReferencesEverywhere() {
+        // TODO Prevent from starting if the current scene is unsaved or has any changes.
+        
+        var currentScenePath = SceneManager.GetActiveScene().path;
         var scenes = EditorBuildSettings.scenes;
         var progressWeight = 1 / (float)(scenes.Length + 1);
         
@@ -124,6 +127,9 @@ public class MissingReferencesFinder : MonoBehaviour {
         }
 
         showFinishDialog(wasCancelled, count);
+        
+        // Restore the scene that was originally open when the tool was started.
+        if(!string.IsNullOrEmpty(currentScenePath)) EditorSceneManager.OpenScene(currentScenePath);
     }
 
     private static bool isProjectAsset(string path) {
