@@ -18,13 +18,6 @@ public class MissingReferencesFinder : MonoBehaviour {
         var scene = SceneManager.GetActiveScene();
         showInitialProgressBar(scene.path);
 
-        //var rootObjects = scene.GetRootGameObjects();
-
-        /*var queue = new Queue<ObjectData>();
-        foreach (var rootObject in rootObjects) {
-            queue.Enqueue(new ObjectData{ExpectedProgress = 1/(float)rootObjects.Length, GameObject = rootObject});
-        }*/
-
         clearConsole();
         
         var wasCancelled = false;
@@ -178,7 +171,7 @@ public class MissingReferencesFinder : MonoBehaviour {
                 if (sp.propertyType == SerializedPropertyType.ObjectReference) {
                     if (sp.objectReferenceValue           == null
                      && sp.objectReferenceInstanceIDValue != 0) {
-                        ShowError(context, go, c.GetType().Name, ObjectNames.NicifyVariableName(sp.name));
+                        showError(context, go, c.GetType().Name, ObjectNames.NicifyVariableName(sp.name));
                         count++;
                     }
                 }
@@ -245,7 +238,7 @@ public class MissingReferencesFinder : MonoBehaviour {
                             if (sp.propertyType == SerializedPropertyType.ObjectReference) {
                                 if (sp.objectReferenceValue           == null
                                  && sp.objectReferenceInstanceIDValue != 0) {
-                                    ShowError(context, go, c.GetType().Name, ObjectNames.NicifyVariableName(sp.name));
+                                    showError(context, go, c.GetType().Name, ObjectNames.NicifyVariableName(sp.name));
                                     count++;
                                 }
                             }
@@ -282,10 +275,8 @@ public class MissingReferencesFinder : MonoBehaviour {
                                     "Ok");
     }
 
-    private const string err = "Missing Ref in: [{3}]{0}. Component: {1}, Property: {2}";
-
-    private static void ShowError(string context, GameObject go, string c, string property) {
-        Debug.LogError(string.Format(err, FullPath(go), c, property, context), go);
+    private static void showError(string context, GameObject go, string componentName, string property) {
+        Debug.LogError($"Missing Reference in: [{context}]{FullPath(go)}. Component: {componentName}, Property: {property}", go);
     }
 
     private static string FullPath(GameObject go) {
