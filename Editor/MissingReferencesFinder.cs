@@ -35,6 +35,7 @@ public class MissingReferencesFinder : MonoBehaviour {
         var assetPath = prefabStage.prefabAssetPath;
 #endif
         showInitialProgressBar(assetPath);
+        clearConsole();
 
 		var count = findMissingReferences(assetPath, prefabStage.prefabContentsRoot, true);
 		showFinishDialog(false, count);
