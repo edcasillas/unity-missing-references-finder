@@ -93,12 +93,35 @@ public class MissingReferencesFinder : MonoBehaviour {
 
     [MenuItem("Tools/Find Missing References/Everywhere", false, 53)]
     public static void FindMissingReferencesEverywhere() {
-        // TODO Prevent from starting if the current scene is unsaved or has any changes.
-        
         var currentScenePath = SceneManager.GetActiveScene().path;
-        var scenes = EditorBuildSettings.scenes;
-        var progressWeight = 1 / (float)(scenes.Length + 1);
+
+        #region Prevent from starting if the current scene is unsaved or has any changes.
+        if (string.IsNullOrWhiteSpace(currentScenePath)) {
+            if (!EditorUtility.DisplayDialog("Missing References Finder",
+                "You must save the current scene before starting to find missing references in the project.", "Save",
+                "Cancel")) return;
+            if (EditorSceneManager.SaveOpenScenes()) {
+                currentScenePath = SceneManager.GetActiveScene().path;
+            }
+            else {
+                EditorUtility.DisplayDialog("Missing References Finder",
+                    "Could not start finding missing references in the project because the current scene is not saved.",
+                    "Ok");
+                return;
+            }
+        }
+        #endregion
+
+        // Warn the user to save the scene if it has unsaved changes. If the user selects "Cancel" the process is stopped.
+        // If the user selects "Don't save", saving is omitted but this still returns true so the process starts. This 
+        // behavior is expected and correct (the user has been warned and they still chose not to save).
+        if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) {
+            return;
+        }
         
+        var scenes = EditorBuildSettings.scenes;
+        var progressWeight = 1 / (float) (scenes.Length + 1);
+
         clearConsole();
 
         var count = 0;
@@ -108,11 +131,15 @@ public class MissingReferencesFinder : MonoBehaviour {
             Scene openScene;
             try {
                 openScene = EditorSceneManager.OpenScene(scene.path);
-            } catch (Exception ex) {
-                Debug.LogError($"Could not open scene at path \"{scene.path}\". This scene was added to the build, and it's possible that it has been deleted: Error: {ex.Message}");
+            }
+            catch (Exception ex) {
+                Debug.LogError(
+                    $"Could not open scene at path \"{scene.path}\". This scene was added to the build, and it's possible that it has been deleted: Error: {ex.Message}");
                 continue;
             }
-            count += findMissingReferencesInScene(openScene, progressWeight, () => { wasCancelled = false; }, () => { wasCancelled = true; }, currentProgress);
+
+            count += findMissingReferencesInScene(openScene, progressWeight, () => { wasCancelled = false; },
+                () => { wasCancelled = true; }, currentProgress);
             currentProgress += progressWeight;
             if (wasCancelled) break;
         }
@@ -120,16 +147,17 @@ public class MissingReferencesFinder : MonoBehaviour {
         if (!wasCancelled) {
             var allAssetPaths = AssetDatabase.GetAllAssetPaths();
             var objs = allAssetPaths
-                       .Where(isProjectAsset)
-                       .ToArray();
+                .Where(isProjectAsset)
+                .ToArray();
 
-            count += findMissingReferences("Project", objs, () => { wasCancelled = false; }, () => { wasCancelled = true; }, currentProgress, progressWeight);
+            count += findMissingReferences("Project", objs, () => { wasCancelled = false; },
+                () => { wasCancelled = true; }, currentProgress, progressWeight);
         }
 
         showFinishDialog(wasCancelled, count);
-        
+
         // Restore the scene that was originally open when the tool was started.
-        if(!string.IsNullOrEmpty(currentScenePath)) EditorSceneManager.OpenScene(currentScenePath);
+        if (!string.IsNullOrEmpty(currentScenePath)) EditorSceneManager.OpenScene(currentScenePath);
     }
 
     private static bool isProjectAsset(string path) {
