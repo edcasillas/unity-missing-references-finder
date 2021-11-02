@@ -95,6 +95,8 @@ public class MissingReferencesFinder : MonoBehaviour {
     public static void FindMissingReferencesEverywhere() {
         var scenes = EditorBuildSettings.scenes;
         var progressWeight = 1 / (float)(scenes.Length + 1);
+        
+        clearConsole();
 
         var count = 0;
         var wasCancelled = true;
@@ -228,7 +230,7 @@ public class MissingReferencesFinder : MonoBehaviour {
 
                 var c = components[j];
                 if (!c) {
-                    Debug.LogError($"Missing Component in GameObject: \"{FullPath(go)}\" in \"{context}\"", go);
+                    Debug.LogError($"Missing COMPONENT: [{context}]\"{FullPath(go)}\"", go);
                     count++;
                     continue;
                 }
@@ -277,7 +279,7 @@ public class MissingReferencesFinder : MonoBehaviour {
     }
 
     private static void showError(string context, GameObject go, string componentName, string property) {
-        Debug.LogError($"Missing Reference in: [{context}]{FullPath(go)}. Component: {componentName}, Property: {property}", go);
+        Debug.LogError($"Missing REFERENCE: [{context}]{FullPath(go)}. Component: {componentName}, Property: {property}", go);
     }
 
     private static string FullPath(GameObject go) {
