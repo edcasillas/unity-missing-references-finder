@@ -87,34 +87,38 @@ public class MissingReferencesResultsWindow : EditorWindow
 
         EditorGUILayout.BeginVertical();
 
-        showMissingComponents = DrawCollapsibleSection("Missing Components", missingComponents.Count, showMissingComponents);
+        showMissingComponents = drawCollapsibleSection("Missing Components", missingComponents.Count, showMissingComponents);
         if (showMissingComponents)
         {
             componentsScrollPos = EditorGUILayout.BeginScrollView(componentsScrollPos);
-            DrawMissingComponentsTable();
+            drawMissingComponentsTable();
             EditorGUILayout.EndScrollView();
         }
 
-        showMissingReferences = DrawCollapsibleSection("Missing References", missingReferences.Values.Sum(list => list.Count), showMissingReferences);
+        showMissingReferences = drawCollapsibleSection("Missing References", missingReferences.Values.Sum(list => list.Count), showMissingReferences);
         if (showMissingReferences)
         {
             referencesScrollPos = EditorGUILayout.BeginScrollView(referencesScrollPos);
-            DrawMissingReferencesTable();
+            drawMissingReferencesTable();
             EditorGUILayout.EndScrollView();
         }
 
         EditorGUILayout.EndVertical();
     }
 
-    private bool DrawCollapsibleSection(string sectionTitle, int resultCount, bool isExpanded)
+    private bool drawCollapsibleSection(string sectionTitle, int resultCount, bool isExpanded)
     {
         EditorGUILayout.BeginHorizontal();
-        isExpanded = EditorGUILayout.Foldout(isExpanded, $"{sectionTitle} ({resultCount} results)", true);
+		if (resultCount > 0) {
+			isExpanded = EditorGUILayout.Foldout(isExpanded, $"{sectionTitle} ({resultCount} results)", true);
+		} else {
+			EditorGUILayout.LabelField($"{sectionTitle} ({resultCount} results)");
+		}
         EditorGUILayout.EndHorizontal();
         return isExpanded;
     }
 
-    private void DrawMissingComponentsTable()
+    private void drawMissingComponentsTable()
     {
         foreach (var kvp in missingComponents)
         {
@@ -126,7 +130,7 @@ public class MissingReferencesResultsWindow : EditorWindow
         }
     }
 
-    private void DrawMissingReferencesTable()
+    private void drawMissingReferencesTable()
     {
         foreach (var kvp in missingReferences)
         {
