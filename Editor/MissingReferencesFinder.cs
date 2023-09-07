@@ -19,7 +19,7 @@ public class MissingReferencesFinder : MonoBehaviour {
         showInitialProgressBar(scene.path);
 
         clearConsole();
-        
+
         var wasCancelled = false;
         var count = findMissingReferencesInScene(scene, 1, () => { wasCancelled = false; }, () => { wasCancelled = true; });
         showFinishDialog(wasCancelled, count);
@@ -28,7 +28,7 @@ public class MissingReferencesFinder : MonoBehaviour {
 	[MenuItem("Tools/Find Missing References/In current prefab", false, 51)]
 	public static void FindMissingReferencesInCurrentPrefab() {
 		var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
-        
+
 #if UNITY_2020_1_OR_NEWER
         var assetPath = prefabStage.assetPath;
 #else
@@ -113,12 +113,12 @@ public class MissingReferencesFinder : MonoBehaviour {
         #endregion
 
         // Warn the user to save the scene if it has unsaved changes. If the user selects "Cancel" the process is stopped.
-        // If the user selects "Don't save", saving is omitted but this still returns true so the process starts. This 
+        // If the user selects "Don't save", saving is omitted but this still returns true so the process starts. This
         // behavior is expected and correct (the user has been warned and they still chose not to save).
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) {
             return;
         }
-        
+
         var scenes = EditorBuildSettings.scenes;
         var progressWeight = 1 / (float) (scenes.Length + 1);
 
@@ -188,6 +188,40 @@ public class MissingReferencesFinder : MonoBehaviour {
         onFinished.Invoke();
         return count;
     }
+
+	internal static void FindMissingReferences(GameObject go, bool findInChildren,
+		IDictionary<GameObject, int> missingComponents,
+		IDictionary<GameObject, IList<ComponentProperty>> missingReferences) {
+		var components = go.GetComponents<Component>();
+
+		for (var j = 0; j < components.Length; j++) {
+			var c = components[j];
+			if (!c) {
+				if (!missingComponents.TryAdd(go, 1)) missingComponents[go]++;
+				continue;
+			}
+
+			var so = new SerializedObject(c);
+			var sp = so.GetIterator();
+
+			while (sp.NextVisible(true)) {
+				if (sp.propertyType == SerializedPropertyType.ObjectReference) {
+					if (sp.objectReferenceValue           == null
+					 && sp.objectReferenceInstanceIDValue != 0) {
+						var missingRef = new ComponentProperty(c, sp);
+						missingReferences.TryAdd(go, new List<ComponentProperty>());
+						missingReferences[go].Add(missingRef);
+					}
+				}
+			}
+		}
+
+		if (findInChildren) {
+			foreach (Transform child in go.transform) {
+				FindMissingReferences(child.gameObject, true, missingComponents, missingReferences);
+			}
+		}
+	}
 
     private static int findMissingReferences(string context, GameObject go, bool findInChildren = false) {
         var count = 0;
