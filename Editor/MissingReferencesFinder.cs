@@ -366,3 +366,13 @@ public class MissingReferencesFinder : MonoBehaviour {
         clearMethod.Invoke(null, null);
     }
 }
+
+#if !UNITY_2021_3_OR_NEWER
+internal static class CollectionExtensionsLegacy {
+	public static bool TryAdd<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key, TValue value) {
+		if (dict.ContainsKey(key)) return false;
+		dict.Add(key, value);
+		return true;
+	}
+}
+#endif
