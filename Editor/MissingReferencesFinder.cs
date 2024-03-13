@@ -159,6 +159,28 @@ public class MissingReferencesFinder : MonoBehaviour {
         // Restore the scene that was originally open when the tool was started.
         if (!string.IsNullOrEmpty(currentScenePath)) EditorSceneManager.OpenScene(currentScenePath);
     }
+    
+    [MenuItem("Tools/Find Missing References/In selected gameObjects", true, 54)]
+    public static bool FindMissingReferencesInSelectedGameObjectsValidate() => Selection.gameObjects.Length != 0;
+    
+    [MenuItem("Tools/Find Missing References/In selected gameObjects", false, 54)]
+    public static void FindMissingReferencesInSelectedGameObjects()
+    {
+        var selectedGameObjects = Selection.gameObjects;
+        
+        showInitialProgressBar($"{selectedGameObjects.Length} assets");
+        
+        clearConsole();
+        
+        int count = 0;
+        
+        foreach (var selectedGameObject in selectedGameObjects)
+        {
+            count += findMissingReferences("selected", selectedGameObject, true);
+        }
+        
+        showFinishDialog(false, count);
+    }
 
     private static bool isProjectAsset(string path) {
 #if UNITY_EDITOR_OSX
