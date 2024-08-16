@@ -48,10 +48,12 @@ public class MissingPrefabsFinder { // Based on this post: https://forum.unity.c
 			return;
 		}
 
+		#if !UNITY_2021_3_OR_NEWER
 		if (PrefabUtility.IsDisconnectedFromPrefabAsset(g)) {
 			Debug.LogError($"{prefabName} has missing prefab {g.name}");
 			return;
 		}
+		#endif
 
 		if (!isRoot) {
 			if (PrefabUtility.IsAnyPrefabInstanceRoot(g)) {
