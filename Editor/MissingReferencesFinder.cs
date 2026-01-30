@@ -182,7 +182,7 @@ public class MissingReferencesFinder : MonoBehaviour {
                 return count;
             }
 
-            count = findMissingReferences(context, obj);
+            count += findMissingReferences(context, obj, true);
         }
 
         onFinished.Invoke();
