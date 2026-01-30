@@ -204,10 +204,7 @@ public class MissingReferencesResultsWindow : EditorWindow
             foreach (var result in missingComponentResults)
             {
                 EditorGUILayout.BeginHorizontal();
-                if (EditorGUILayout.LinkButton(result.GameObject ? result.GameObject.name : "<null>"))
-                {
-                    OnResultClicked(result);
-                }
+                EditorGUILayout.ObjectField(result.GameObject, typeof(GameObject), true, GUILayout.MinWidth(150f));
                 EditorGUILayout.LabelField($"[{result.Context}]", GUILayout.MinWidth(150f));
                 EditorGUILayout.EndHorizontal();
                 EditorGUILayout.Space();
