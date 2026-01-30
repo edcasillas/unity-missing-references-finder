@@ -1,7 +1,11 @@
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using System.Linq;
+using System;
+using System.Collections;
 
 internal class ComponentProperty
 {
@@ -15,13 +19,27 @@ internal class ComponentProperty
     }
 }
 
+public class MissingReferenceResult
+{
+    public string Context;
+    public GameObject GameObject;
+    public string ComponentName;
+    public string PropertyName;
+    public bool IsMissingComponent;
+    public bool IsInScene;
+    public string ScenePath;
+}
+
 public class MissingReferencesResultsWindow : EditorWindow
 {
     private static MissingReferencesResultsWindow instance;
 
     private readonly Dictionary<GameObject, int> missingComponents = new Dictionary<GameObject, int>();
     private readonly Dictionary<GameObject, IList<ComponentProperty>> missingReferences = new Dictionary<GameObject, IList<ComponentProperty>>();
+    private readonly List<MissingReferenceResult> searchResults = new List<MissingReferenceResult>();
     private bool isSearching = false;
+    private float searchProgress = 0f;
+    private string searchStatus = "";
 
     private GameObject selectedGameObject;
     private GameObject SelectedGameObject
@@ -35,7 +53,6 @@ public class MissingReferencesResultsWindow : EditorWindow
 
             if (!selectedGameObject)
             {
-                // Remove results?
                 return;
             }
             refreshMissingReferences();
@@ -44,6 +61,7 @@ public class MissingReferencesResultsWindow : EditorWindow
 
     private Vector2 componentsScrollPos = Vector2.zero;
     private Vector2 referencesScrollPos = Vector2.zero;
+    private Vector2 searchResultsScrollPos = Vector2.zero;
 
     private bool showMissingComponents = false;
     private bool showMissingReferences = false;
@@ -71,8 +89,59 @@ public class MissingReferencesResultsWindow : EditorWindow
     [MenuItem("GameObject/Find Missing References", true)]
     private static bool ValidateOneGameObjectSelected() => (Selection.transforms?.Length ?? 0) == 1;
 
+    public static MissingReferencesResultsWindow ShowSearchWindow()
+    {
+        if (!instance)
+        {
+            instance = GetWindow<MissingReferencesResultsWindow>("Missing References Finder");
+        }
+        instance.Show();
+        return instance;
+    }
+
+    public void StartSearch(IEnumerator searchCoroutine)
+    {
+        isSearching = true;
+        searchProgress = 0f;
+        searchStatus = "";
+        searchResults.Clear();
+        EditorApplication.update += ProcessSearch;
+        currentSearchCoroutine = searchCoroutine;
+        Repaint();
+    }
+
+    private IEnumerator currentSearchCoroutine;
+
+    private void ProcessSearch()
+    {
+        if (currentSearchCoroutine == null || !currentSearchCoroutine.MoveNext())
+        {
+            EditorApplication.update -= ProcessSearch;
+            currentSearchCoroutine = null;
+            isSearching = false;
+            Repaint();
+        }
+        else
+        {
+            Repaint();
+        }
+    }
+
+    public void UpdateProgress(float progress, string status)
+    {
+        searchProgress = progress;
+        searchStatus = status;
+    }
+
+    public void AddResult(MissingReferenceResult result) => searchResults.Add(result);
+
     private void OnGUI()
     {
+        if (searchResults.Count > 0 || isSearching)
+        {
+            DrawSearchResults();
+            return;
+        }
 
         SelectedGameObject = (GameObject)EditorGUILayout.ObjectField("Game Object: ", SelectedGameObject, typeof(GameObject), true);
 		if(GUILayout.Button("Refresh")) refreshMissingReferences();
@@ -104,6 +173,75 @@ public class MissingReferencesResultsWindow : EditorWindow
         }
 
         EditorGUILayout.EndVertical();
+    }
+
+    private void DrawSearchResults()
+    {
+        if (isSearching)
+        {
+            EditorGUILayout.LabelField(searchStatus, EditorStyles.boldLabel);
+            var rect = GUILayoutUtility.GetRect(EditorGUIUtility.currentViewWidth - 20, EditorGUIUtility.singleLineHeight);
+            EditorGUI.ProgressBar(rect, searchProgress, $"{(searchProgress * 100):F0}%");
+            EditorGUILayout.Space();
+        }
+        else
+        {
+            EditorGUILayout.LabelField($"Found {searchResults.Count} missing references", EditorStyles.boldLabel);
+            if (GUILayout.Button("Clear Results"))
+            {
+                searchResults.Clear();
+                return;
+            }
+            EditorGUILayout.Space();
+        }
+
+        searchResultsScrollPos = EditorGUILayout.BeginScrollView(searchResultsScrollPos);
+        foreach (var result in searchResults)
+        {
+            DrawResultItem(result);
+        }
+        EditorGUILayout.EndScrollView();
+    }
+
+    private void DrawResultItem(MissingReferenceResult result)
+    {
+        EditorGUILayout.BeginHorizontal();
+
+        var label = result.IsMissingComponent
+            ? $"[{result.Context}] {GetGameObjectPath(result.GameObject)} - Missing Component"
+            : $"[{result.Context}] {GetGameObjectPath(result.GameObject)} - {result.ComponentName}.{result.PropertyName}";
+
+        if (GUILayout.Button(label, EditorStyles.linkLabel))
+        {
+            OnResultClicked(result);
+        }
+
+        EditorGUILayout.EndHorizontal();
+    }
+
+    private void OnResultClicked(MissingReferenceResult result)
+    {
+        if (result.IsInScene)
+        {
+            if (SceneManager.GetActiveScene().path != result.ScenePath)
+            {
+                EditorSceneManager.OpenScene(result.ScenePath);
+            }
+            Selection.activeGameObject = result.GameObject;
+            EditorGUIUtility.PingObject(result.GameObject);
+        }
+        else
+        {
+            Selection.activeObject = result.GameObject;
+            EditorGUIUtility.PingObject(result.GameObject);
+        }
+    }
+
+    private string GetGameObjectPath(GameObject go)
+    {
+        if (!go) return "<null>";
+        var parent = go.transform.parent;
+        return parent == null ? go.name : GetGameObjectPath(parent.gameObject) + "/" + go.name;
     }
 
     private bool drawCollapsibleSection(string sectionTitle, int resultCount, bool isExpanded)
