@@ -186,7 +186,6 @@ public class MissingReferencesResultsWindow : EditorWindow
         }
         else
         {
-            EditorGUILayout.LabelField($"Found {searchResults.Count} missing references", EditorStyles.boldLabel);
             if (GUILayout.Button("Clear Results"))
             {
                 searchResults.Clear();
@@ -195,28 +194,42 @@ public class MissingReferencesResultsWindow : EditorWindow
             EditorGUILayout.Space();
         }
 
-        searchResultsScrollPos = EditorGUILayout.BeginScrollView(searchResultsScrollPos);
-        foreach (var result in searchResults)
+        var missingComponentResults = searchResults.Where(r => r.IsMissingComponent).ToList();
+        var missingReferenceResults = searchResults.Where(r => !r.IsMissingComponent).ToList();
+
+        showMissingComponents = drawCollapsibleSection("Missing Components", missingComponentResults.Count, showMissingComponents);
+        if (showMissingComponents)
         {
-            DrawResultItem(result);
+            componentsScrollPos = EditorGUILayout.BeginScrollView(componentsScrollPos);
+            foreach (var result in missingComponentResults)
+            {
+                EditorGUILayout.BeginHorizontal();
+                if (EditorGUILayout.LinkButton(result.GameObject ? result.GameObject.name : "<null>"))
+                {
+                    OnResultClicked(result);
+                }
+                EditorGUILayout.LabelField($"[{result.Context}]", GUILayout.MinWidth(150f));
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.Space();
+            }
+            EditorGUILayout.EndScrollView();
         }
-        EditorGUILayout.EndScrollView();
-    }
 
-    private void DrawResultItem(MissingReferenceResult result)
-    {
-        EditorGUILayout.BeginHorizontal();
-
-        var label = result.IsMissingComponent
-            ? $"[{result.Context}] {GetGameObjectPath(result.GameObject)} - Missing Component"
-            : $"[{result.Context}] {GetGameObjectPath(result.GameObject)} - {result.ComponentName}.{result.PropertyName}";
-
-        if (GUILayout.Button(label, EditorStyles.linkLabel))
+        showMissingReferences = drawCollapsibleSection("Missing References", missingReferenceResults.Count, showMissingReferences);
+        if (showMissingReferences)
         {
-            OnResultClicked(result);
+            referencesScrollPos = EditorGUILayout.BeginScrollView(referencesScrollPos);
+            foreach (var result in missingReferenceResults)
+            {
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.ObjectField(result.GameObject, typeof(GameObject), true, GUILayout.MinWidth(150f));
+                EditorGUILayout.LabelField(result.ComponentName, GUILayout.MinWidth(150f));
+                EditorGUILayout.LabelField(result.PropertyName, GUILayout.MinWidth(150f));
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.Space();
+            }
+            EditorGUILayout.EndScrollView();
         }
-
-        EditorGUILayout.EndHorizontal();
     }
 
     private void OnResultClicked(MissingReferenceResult result)
