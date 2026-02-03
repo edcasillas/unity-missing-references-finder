@@ -4,7 +4,6 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using System.Linq;
-using System;
 using System.Collections;
 
 internal class ComponentProperty
