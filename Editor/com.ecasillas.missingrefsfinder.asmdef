@@ -1,7 +1,7 @@
 {
     "name": "com.ecasillas.missingrefsfinder",
+    "rootNamespace": "",
     "references": [],
-    "optionalUnityReferences": [],
     "includePlatforms": [
         "Editor"
     ],
@@ -9,6 +9,8 @@
     "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [],
-    "autoReferenced": true,
-    "defineConstraints": []
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }
