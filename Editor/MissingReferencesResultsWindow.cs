@@ -73,15 +73,17 @@ public class MissingReferencesResultsWindow : EditorWindow
             instance = GetWindow<MissingReferencesResultsWindow>("Find Missing References");
         }
 
+        // Prefer current object selection when command is run (even if window is open).
         var selected = Selection.transforms.FirstOrDefault()?.gameObject;
-        if (instance.SelectedGameObject)
+        if (selected && instance.SelectedGameObject != selected)
+        {
+            instance.SelectedGameObject = selected; // Setter trigger refresh
+        }
+        else if (instance.SelectedGameObject)
         {
             instance.refreshMissingReferences();
         }
-        else
-        {
-            instance.SelectedGameObject = selected;
-        }
+
         instance.Show();
     }
 
