@@ -3,10 +3,14 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
-using UnityEditor.Experimental.SceneManagement;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+
+#if UNITY_2021_2_OR_NEWER
+using UnityEditor.SceneManagement;
+#else
+using UnityEditor.Experimental.SceneManagement;
+#endif
 
 public class MissingReferencesFinder : MonoBehaviour {
     private class ObjectData {
@@ -116,7 +120,7 @@ public class MissingReferencesFinder : MonoBehaviour {
 
             window.UpdateProgress(i / (float)paths.Length, $"Searching in assets: {paths[i]}");
             findMissingReferences("Project", obj, true, window);
-            
+
             if (i % 10 == 0) yield return null;
         }
     }
@@ -149,7 +153,7 @@ public class MissingReferencesFinder : MonoBehaviour {
         var allAssetPaths = AssetDatabase.GetAllAssetPaths()
             .Where(isProjectAsset)
             .ToArray();
-        
+
         window.StartSearch(FindEverywhereCoroutine(scenes, allAssetPaths, currentScenePath, window));
     }
 
@@ -182,7 +186,7 @@ public class MissingReferencesFinder : MonoBehaviour {
 
             window.UpdateProgress((currentWork + i) / (float)totalWork, $"Searching in assets: {assetPaths[i]}");
             findMissingReferences("Project", obj, true, window);
-            
+
             if (i % 10 == 0) yield return null;
         }
 
@@ -222,24 +226,30 @@ public class MissingReferencesFinder : MonoBehaviour {
             var sp = so.GetIterator();
 
             while (sp.NextVisible(true)) {
-                if (sp.propertyType == SerializedPropertyType.ObjectReference) {
-                    if (sp.objectReferenceValue           == null
-                     && sp.objectReferenceInstanceIDValue != 0) {
-                        if (window != null) {
-                            window.AddResult(new MissingReferenceResult {
-                                Context = context,
-                                GameObject = go,
-                                ComponentName = c.GetType().Name,
-                                PropertyName = ObjectNames.NicifyVariableName(sp.name),
-                                IsMissingComponent = false,
-                                IsInScene = isInScene,
-                                ScenePath = isInScene ? go.scene.path : null
-                            });
-                        }
-                        count++;
-                    }
-                }
-            }
+				if (
+					sp.propertyType != SerializedPropertyType.ObjectReference ||
+					sp.objectReferenceValue != null ||
+#if UNITY_6000_4_OR_NEWER
+					sp.objectReferenceEntityIdValue.IsValid()
+#else
+					sp.objectReferenceInstanceIDValue == 0
+					#endif
+					)
+					continue;
+
+				if (window != null) {
+					window.AddResult(new MissingReferenceResult {
+						Context = context,
+						GameObject = go,
+						ComponentName = c.GetType().Name,
+						PropertyName = ObjectNames.NicifyVariableName(sp.name),
+						IsMissingComponent = false,
+						IsInScene = isInScene,
+						ScenePath = isInScene ? go.scene.path : null
+					});
+				}
+				count++;
+			}
         }
 
         if (findInChildren) {
@@ -267,14 +277,19 @@ public class MissingReferencesFinder : MonoBehaviour {
 			var sp = so.GetIterator();
 
 			while (sp.NextVisible(true)) {
-				if (sp.propertyType == SerializedPropertyType.ObjectReference) {
-					if (sp.objectReferenceValue           == null
-					 && sp.objectReferenceInstanceIDValue != 0) {
-						var missingRef = new ComponentProperty(c, sp);
-						missingReferences.TryAdd(go, new List<ComponentProperty>());
-						missingReferences[go].Add(missingRef);
-					}
-				}
+				if (
+					sp.propertyType != SerializedPropertyType.ObjectReference ||
+					sp.objectReferenceValue != null ||
+#if UNITY_6000_4_OR_NEWER
+					sp.objectReferenceEntityIdValue.IsValid()
+#else
+					sp.objectReferenceInstanceIDValue == 0
+#endif
+					)
+					continue;
+				var missingRef = new ComponentProperty(c, sp);
+				missingReferences.TryAdd(go, new List<ComponentProperty>());
+				missingReferences[go].Add(missingRef);
 			}
 		}
 
